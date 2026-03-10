@@ -724,12 +724,18 @@ function selectRenec(encoded, ctx) {
 // SCANNER
 // ═══════════════════════════════
 let _stream = null, _scanLoop = null;
+let scanningActive = false;
 
 function startScanner() {
   const video = document.getElementById('scanner-video');
   const btnStart = document.getElementById('btn-start-scan');
   const btnStop = document.getElementById('btn-stop-scan');
   document.getElementById('scan-result-box').style.display = 'none';
+
+  if (_stream) {
+    console.log('Scanner ya está activo');
+    return;
+  }
 
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
     .then(stream => {
@@ -738,15 +744,17 @@ function startScanner() {
       video.play();
       btnStart.style.display = 'none';
       btnStop.style.display = 'inline-flex';
+      scanningActive = true;
       _scanLoop = requestAnimationFrame(scanFrame);
     })
     .catch(err => {
-      console.error(err);
+      console.error('Error al acceder a la cámara:', err);
       alert('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
     });
 }
 
 function stopScanner() {
+  scanningActive = false;
   if (_stream) { _stream.getTracks().forEach(t => t.stop()); _stream = null; }
   if (_scanLoop) { cancelAnimationFrame(_scanLoop); _scanLoop = null; }
   const video = document.getElementById('scanner-video');
@@ -758,6 +766,7 @@ function stopScanner() {
 }
 
 function scanFrame() {
+  if (!scanningActive) return;
   const video = document.getElementById('scanner-video');
   const canvas = document.getElementById('scanner-canvas');
   if (!video || !_stream) return;
@@ -767,28 +776,37 @@ function scanFrame() {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
     if (code) {
+      console.log('QR detectado:', code.data);
       processScannedQR(code.data);
-      return;
     }
   }
   _scanLoop = requestAnimationFrame(scanFrame);
 }
 
+
 function processScannedQR(raw) {
   let data;
-  try { data = JSON.parse(raw); } catch {
+  try { 
+    data = JSON.parse(raw);
+    // Validar que tenga los campos necesarios
+    if (!data.id || !data.correo) {
+      throw new Error('Campos requeridos faltantes');
+    }
+  } catch (err) {
+    console.error('Error al procesar QR:', err.message, 'Raw:', raw);
     showScanResult(null, 'QR inválido o no reconocido.');
-    _scanLoop = requestAnimationFrame(scanFrame);
+    setTimeout(() => { if (scanningActive) _scanLoop = requestAnimationFrame(scanFrame); }, 2000);
     return;
   }
   const students = getStudents();
-  const student = students.find(s => s.id === data.id || s.email === data.correo);
+  const student = students.find(s => s.id === data.id || s.email.toLowerCase() === data.correo.toLowerCase());
 
   if (!student) {
+    console.error('Estudiante no encontrado. Buscaba id:', data.id, 'o correo:', data.correo);
     showScanResult(null, 'Estudiante no encontrado en el sistema.');
-    setTimeout(() => { _scanLoop = requestAnimationFrame(scanFrame); }, 3000);
+    setTimeout(() => { if (scanningActive) _scanLoop = requestAnimationFrame(scanFrame); }, 2000);
     return;
   }
 
