@@ -193,7 +193,7 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
   /* ── SCANNER ── */
-  #scanner-wrap { position: relative; border-radius: 12px; overflow: hidden; background: #000; aspect-ratio: 4/3; max-width: 480px; margin: 0 auto; }
+  #scanner-wrap { position: relative; border-radius: 12px; overflow: hidden; background: #000; aspect-ratio: 4/3; max-width: 100%; height: 450px; margin: 0 auto; border: 3px solid var(--gold); box-shadow: 0 0 20px rgba(232, 184, 75, 0.2); }
   #scanner-video { width: 100%; height: 100%; object-fit: cover; }
   #scanner-canvas { display: none; }
   .scanner-overlay {
@@ -209,7 +209,48 @@
     animation: scanPulse 2s ease-in-out infinite;
   }
   @keyframes scanPulse { 0%,100% { border-color: var(--gold); } 50% { border-color: var(--gold-light); box-shadow: 0 0 0 2000px rgba(0,0,0,.45), 0 0 20px var(--gold-light); } }
+  
+  /* ── LÍNEA VERDE DE ESCANEO ── */
+  .scanner-line {
+    position: absolute;
+    height: 4px;
+    background: linear-gradient(90deg, transparent 0%, #22c55e 40%, #22c55e 60%, transparent 100%);
+    width: 100%;
+    top: 30%;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0;
+    display: none;
+  }
+  
+  .scanner-line.active {
+    display: block;
+    animation: scanMove 1s ease-in-out forwards;
+    box-shadow: 0 0 15px #22c55e, 0 0 30px rgba(34, 197, 94, 0.5);
+  }
+  
+  @keyframes scanMove { 
+    0% { top: 10%; opacity: 0.4; box-shadow: 0 0 10px #22c55e; } 
+    50% { opacity: 1; box-shadow: 0 0 20px #22c55e, 0 0 40px rgba(34, 197, 94, 0.6); } 
+    100% { top: 80%; opacity: 0.4; box-shadow: 0 0 10px #22c55e; } 
+  }
+  
+  .scanner-success {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 4px solid #22c55e;
+    border-radius: 12px;
+    animation: successFlash 0.6s ease-out;
+    z-index: 20;
+  }
+  @keyframes successFlash { 
+    0% { box-shadow: 0 0 0 0 #22c55e, inset 0 0 0 0 #22c55e; opacity: 1; } 
+    100% { box-shadow: 0 0 0 40px transparent, inset 0 0 0 0 transparent; opacity: 0.5; } 
+  }
+  
   #scan-result-box { display: none; }
+
   /* ── TABLE ── */
   .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--gray-200); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -386,7 +427,10 @@
       <div id="scanner-wrap">
         <video id="scanner-video" playsinline muted></video>
         <canvas id="scanner-canvas"></canvas>
-        <div class="scanner-overlay"><div class="scanner-box"></div></div>
+        <div class="scanner-overlay">
+          <div class="scanner-line" id="scanner-line"></div>
+          <div class="scanner-box"></div>
+        </div>
       </div>
 
       <div style="display:flex;gap:10px;margin-top:16px;justify-content:center;flex-wrap:wrap;">
@@ -396,18 +440,18 @@
 
       <div id="scan-result-box">
         <hr class="divider">
-        <div class="card" style="padding:20px;margin:0;">
+        <div class="card" style="padding:20px;margin:0;background:linear-gradient(135deg, #e6f7ef 0%, #f0f9ff 100%);border: 2px solid var(--green, #22c55e);border-top: 4px solid #22c55e;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <div id="scan-status-icon" style="font-size:28px;"></div>
+            <div id="scan-status-icon" style="font-size:32px;font-weight:bold;"></div>
             <div>
-              <div id="sr-nombre" style="font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:var(--navy);"></div>
-              <div id="sr-email" style="font-size:13px;color:var(--gray-400);"></div>
+              <div id="sr-nombre" style="font-family:'Syne',sans-serif;font-size:19px;font-weight:700;color:var(--navy);"></div>
+              <div id="sr-email" style="font-size:13px;color:var(--gray-400);margin-top:2px;"></div>
             </div>
           </div>
           <div class="qr-details">
-            <div class="qr-detail-row"><span class="qr-detail-label">Código EC</span><span class="qr-detail-value" id="sr-codigo"></span></div>
-            <div class="qr-detail-row"><span class="qr-detail-label">Nivel</span><span class="qr-detail-value" id="sr-nivel"></span></div>
-            <div class="qr-detail-row"><span class="qr-detail-label">Estado</span><span class="qr-detail-value" id="sr-status"></span></div>
+            <div class="qr-detail-row"><span class="qr-detail-label">Código EC</span><span class="qr-detail-value" id="sr-codigo" style="font-weight:bold;color:#22c55e;"></span></div>
+            <div class="qr-detail-row"><span class="qr-detail-label">Nivel</span><span class="qr-detail-value" id="sr-nivel" style="font-weight:bold;"></span></div>
+            <div class="qr-detail-row"><span class="qr-detail-label">Estado</span><span class="qr-detail-value" id="sr-status" style="font-weight:bold;"></span></div>
           </div>
         </div>
       </div>
@@ -590,7 +634,8 @@ function displayStudentResult(student) {
   const container = document.getElementById('qr-canvas-display');
   container.innerHTML = '';
   const qrData = JSON.stringify({ id: student.id, nombre: student.nombre, codigo: student.codigo, correo: student.email, nivel: student.nivel, timestamp: student.createdAt });
-  new QRCode(container, { text: qrData, width: 200, height: 200, colorDark: '#0a1628', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  console.log('📊 Generando QR con datos:', qrData);
+  new QRCode(container, { text: qrData, width: 200, height: 200, colorDark: '#0a1628', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
 
   document.getElementById('student-result').style.display = 'block';
   window._currentStudentForDownload = student;
@@ -725,18 +770,23 @@ function selectRenec(encoded, ctx) {
 // ═══════════════════════════════
 let _stream = null, _scanLoop = null;
 let scanningActive = false;
+let _frameCount = 0;
+let _lastLogTime = 0;
 
 function startScanner() {
   const video = document.getElementById('scanner-video');
   const btnStart = document.getElementById('btn-start-scan');
   const btnStop = document.getElementById('btn-stop-scan');
   document.getElementById('scan-result-box').style.display = 'none';
+  _frameCount = 0;
+  _lastLogTime = Date.now();
 
   if (_stream) {
-    console.log('Scanner ya está activo');
+    console.log('🎥 Scanner ya está activo');
     return;
   }
 
+  console.log('🎥 Iniciando scanner...');
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
     .then(stream => {
       _stream = stream;
@@ -745,10 +795,11 @@ function startScanner() {
       btnStart.style.display = 'none';
       btnStop.style.display = 'inline-flex';
       scanningActive = true;
+      console.log('✅ Cámara iniciada correctamente');
       _scanLoop = requestAnimationFrame(scanFrame);
     })
     .catch(err => {
-      console.error('Error al acceder a la cámara:', err);
+      console.error('❌ Error al acceder a la cámara:', err);
       alert('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
     });
 }
@@ -763,52 +814,88 @@ function stopScanner() {
   const btnStop = document.getElementById('btn-stop-scan');
   if (btnStart) btnStart.style.display = 'inline-flex';
   if (btnStop) btnStop.style.display = 'none';
+  console.log('🛑 Scanner detenido. Se analizaron', _frameCount, 'frames');
 }
 
 function scanFrame() {
   if (!scanningActive) return;
   const video = document.getElementById('scanner-video');
   const canvas = document.getElementById('scanner-canvas');
-  if (!video || !_stream) return;
+  if (!video || !_stream) {
+    if (Date.now() - _lastLogTime > 5000) {
+      console.warn('⚠️ Scanner: video o stream no disponibles');
+      _lastLogTime = Date.now();
+    }
+    return;
+  }
+  
+  _frameCount++;
+  
   if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
-    if (code) {
-      console.log('QR detectado:', code.data);
-      processScannedQR(code.data);
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.error('❌ No se pudo obtener contexto del canvas');
+        _scanLoop = requestAnimationFrame(scanFrame);
+        return;
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+      if (code) {
+        console.log('✅ QR DETECTADO:', code.data);
+        processScannedQR(code.data);
+      } else {
+        // Log cada 60 frames (aprox cada 2 segundos a 30fps)
+        if (_frameCount % 60 === 0 && Date.now() - _lastLogTime > 3000) {
+          console.log(`📹 Escaneando... (${_frameCount} frames, no QR detectado)`);
+          _lastLogTime = Date.now();
+        }
+      }
+    } catch (err) {
+      console.error('❌ Error en scanFrame:', err);
+    }
+  } else {
+    if (Date.now() - _lastLogTime > 5000) {
+      console.debug('⚠️ Video no listo:', video.readyState);
+      _lastLogTime = Date.now();
     }
   }
   _scanLoop = requestAnimationFrame(scanFrame);
 }
 
-
 function processScannedQR(raw) {
+  console.log('🔍 Datos brutos del QR:', raw);
   let data;
   try { 
     data = JSON.parse(raw);
+    console.log('📦 QR parseado:', data);
     // Validar que tenga los campos necesarios
     if (!data.id || !data.correo) {
-      throw new Error('Campos requeridos faltantes');
+      throw new Error('Campos requeridos faltantes. ID:' + data.id + ' Correo:' + data.correo);
     }
   } catch (err) {
-    console.error('Error al procesar QR:', err.message, 'Raw:', raw);
-    showScanResult(null, 'QR inválido o no reconocido.');
+    console.error('❌ Error al procesar QR:', err.message, 'Raw:', raw);
+    showScanErrorResult('QR inválido o no reconocido.');
     setTimeout(() => { if (scanningActive) _scanLoop = requestAnimationFrame(scanFrame); }, 2000);
     return;
   }
   const students = getStudents();
+  console.log('👥 Estudiantes en BD:', students.length, 'Buscando:', data.id, data.correo);
   const student = students.find(s => s.id === data.id || s.email.toLowerCase() === data.correo.toLowerCase());
 
   if (!student) {
-    console.error('Estudiante no encontrado. Buscaba id:', data.id, 'o correo:', data.correo);
-    showScanResult(null, 'Estudiante no encontrado en el sistema.');
+    console.error('❌ Estudiante no encontrado. Buscaba id:', data.id, 'o correo:', data.correo);
+    showScanErrorResult('Estudiante no encontrado en el sistema.');
     setTimeout(() => { if (scanningActive) _scanLoop = requestAnimationFrame(scanFrame); }, 2000);
     return;
   }
+
+  // ✅ Mostrar animación de éxito
+  console.log('✅ Estudiante encontrado:', student.nombre);
+  showScanSuccessAnimation();
 
   const attendance = getAttendance();
   const today = new Date().toDateString();
@@ -822,27 +909,36 @@ function processScannedQR(raw) {
     codigo: student.codigo,
     nivel: student.nivel,
     scannedAt: new Date().toISOString(),
-    datoExtra: '' // Campo extra (ninguno)
+    datoExtra: ''
   };
 
   if (!already) {
     attendance.push(record);
     saveAttendance(attendance);
+    console.log('✅ Asistencia registrada');
+  } else {
+    console.log('⚠️ Asistencia ya registrada hoy');
   }
 
+  // 📊 Mostrar datos completamente
+  console.log('✅ QR Escaneado exitosamente:', student);
   document.getElementById('sr-nombre').textContent = student.nombre;
   document.getElementById('sr-email').textContent = student.email;
   document.getElementById('sr-codigo').textContent = student.codigo;
   document.getElementById('sr-nivel').textContent = 'Nivel ' + student.nivel;
+  
   if (already) {
-    document.getElementById('sr-status').innerHTML = '<span class="badge badge-gold">Ya registrado hoy</span>';
+    document.getElementById('sr-status').innerHTML = '<span class="badge badge-gold">⚠️ Ya registrado hoy</span>';
     document.getElementById('scan-status-icon').textContent = '⚠️';
   } else {
-    document.getElementById('sr-status').innerHTML = '<span class="badge badge-success">✔ Asistencia registrada</span>';
+    document.getElementById('sr-status').innerHTML = '<span class="badge badge-success">✅ Asistencia registrada</span>';
     document.getElementById('scan-status-icon').textContent = '✅';
   }
   document.getElementById('scan-result-box').style.display = 'block';
   updateStats();
+
+  // Reproducir sonido (opcional)
+  playSuccessBeep();
 
   setTimeout(() => {
     document.getElementById('scan-result-box').style.display = 'none';
@@ -850,8 +946,64 @@ function processScannedQR(raw) {
   }, 4000);
 }
 
+function showScanSuccessAnimation() {
+  // Mostrar línea verde cuando se detecte QR
+  const scannerLine = document.getElementById('scanner-line');
+  if (scannerLine) {
+    scannerLine.classList.add('active');
+  }
+  
+  const overlay = document.querySelector('.scanner-overlay');
+  if (!overlay) return;
+  
+  const success = document.createElement('div');
+  success.className = 'scanner-success';
+  overlay.appendChild(success);
+  
+  setTimeout(() => {
+    success.remove();
+    // Remover la línea verde después de la animación
+    if (scannerLine) {
+      scannerLine.classList.remove('active');
+    }
+  }, 500);
+}
+
+function showScanErrorResult(msg) {
+  document.getElementById('sr-nombre').textContent = msg || 'Error';
+  document.getElementById('sr-email').textContent = '';
+  document.getElementById('sr-codigo').textContent = '—';
+  document.getElementById('sr-nivel').textContent = '—';
+  document.getElementById('sr-status').textContent = '';
+  document.getElementById('scan-status-icon').textContent = '❌';
+  document.getElementById('scan-result-box').style.display = 'block';
+}
+
+function playSuccessBeep() {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.value = 800;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.1);
+  } catch (e) {
+    console.log('No se pudo reproducir sonido');
+  }
+}
+
 function showScanResult(student, msg) {
-  document.getElementById('sr-nombre').textContent = msg || '—';
+  // Esta función está aquí como respaldo, pero no se usa
+}
+
+// Esta es la función principal para mostrar errores
+function showScanErrorResult(msg) {
+  document.getElementById('sr-nombre').textContent = msg || 'Error';
   document.getElementById('sr-email').textContent = '';
   document.getElementById('sr-codigo').textContent = '—';
   document.getElementById('sr-nivel').textContent = '—';
@@ -983,7 +1135,8 @@ function updateStudentQR() {
   const container = document.getElementById('upd-qr-canvas');
   container.innerHTML = '';
   const qrData = JSON.stringify({ id: students[idx].id, nombre: students[idx].nombre, codigo: students[idx].codigo, correo: students[idx].email, nivel: students[idx].nivel, timestamp: students[idx].updatedAt });
-  new QRCode(container, { text: qrData, width: 180, height: 180, colorDark: '#0a1628', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  console.log('📊 QR actualizado con datos:', qrData);
+  new QRCode(container, { text: qrData, width: 180, height: 180, colorDark: '#0a1628', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
   document.getElementById('upd-qr-result').style.display = 'block';
 }
 
